@@ -21,4 +21,5 @@
 #define PINK        0xF81F
 
 // Screen background color
-#define BACKGROUND_CLR BLACK
+#define BG_COLOR    BLACK
+#define TEXT_COLOR  WHITE
