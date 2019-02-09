@@ -1,4 +1,5 @@
 #include <MCUFRIEND_kbv.h>            // Graphics library and driver
+// #include "config/FastText.h"          // Custom fast text rendering
 #include "config/LCD.h"               // LCD parameters
 #include "config/SerialConnection.h"  // Serial connection parameters
 #include "config/Colors.h"            // Display colours
@@ -6,15 +7,13 @@
 #include "assets/OpenSansRegular32.h" // Font memory map
 #include "assets/UT19SplashScreen.h"  // Splash screen memory map
 
-// Screen object
+// Our custom class extends MCUFRIEND_kbv
 MCUFRIEND_kbv tft;
 
 // Global variables
-String rpmDisplay, oldRpmDisplay = "";
-// Will cause a bug if car ever starts over 10,000 rpm
-int rpmXPos, oldRpmXPos = 120;
-String voltageDisplay, oldVoltageDisplay = "";
-String coolantDisplay, oldCoolantDisplay = "";
+int rpm, lastRpm = 0;
+float voltage, lastVoltage = 0.0;
+int wTemp, lastWTemp = 0;
 
 // Test string: 14.5R9500C95T
 
@@ -41,11 +40,11 @@ void setup() {
     tft.fillRect(80, 85, 310, 119, BG_COLOR);
 
     // Setup background drawings that don't need to be re-drawn in main loop
-    displayString("RPM",  15, 100,  WHITE, 1);
-    displayString("BATT", 15, 220,  WHITE, 1);
-    displayString("V",    190, 220, WHITE, 1);
-    displayString("TEMP", 280, 220, WHITE, 1);
-    displayString("C",    430, 220, WHITE, 1);
+    displayStaticString("RPM",  15, 100,  WHITE, 1);
+    displayStaticString("BATT", 15, 220,  WHITE, 1);
+    displayStaticString("V",    190, 220, WHITE, 1);
+    displayStaticString("TEMP", 280, 220, WHITE, 1);
+    displayStaticString("C",    430, 220, WHITE, 1);
 }
 
 // Main loop
@@ -60,20 +59,18 @@ void loop(void) {
         displayValues();
 
         // Print debugging values to serial interface
-        Serial.println("Voltage:\t" + voltageDisplay);
-        Serial.println("RPM:\t\t" + rpmDisplay);
-        Serial.println("Coolant:\t" + coolantDisplay);
+        Serial.println("Voltage:\t" + String(voltage));
+        Serial.println("RPM:\t\t" + String(rpm));
+        Serial.println("Coolant:\t" + String(wTemp));
         Serial.println("");
     }
 }
 
 // Decode serial inputs received from master controller
 inline void recieveSerialInputs() {
-    rpmDisplay = "";
-    voltageDisplay = "";
-    coolantDisplay = "";
+    // TODO: Change this completely
+    String rpmDisplay, voltageDisplay, coolantDisplay = "";
     if (Serial.available() > 0) {
-        // Echo response
         String temp1 = String(char(Serial.read()));
         while (temp1 != "R" && Serial.available()) {
             voltageDisplay += temp1;
@@ -90,58 +87,20 @@ inline void recieveSerialInputs() {
             temp1 = String(char(Serial.read()));
         }
     }
-}
 
-/**
- * @brief Render a string on the screen with left edge and baseline at (x, y)
- *        If the text moves around the screen, use renderMovingText() instead
- * @param string The string to draw
- * @param x The x co-ordinate of the left edge of the string
- * @param y The y co-ordinate of the baseline of the string
- * @param color The color to draw this string
- * @param size The multiplier to apply to the base font size
- */
-static void displayString(String string, int x, int y, int color, int size) {
-    // Call displayStringHelper on this string with identical strings,
-    // co-ordinates, and colours
-    displayStringHelper(string, string, x, y, x, y, BG_COLOR, color, size);
-}
+    // Update globals and their history
+    lastRpm = rpm;
+    rpm = rpmDisplay.toInt();
 
+    lastVoltage = voltage;
+    voltage = voltageDisplay.toDouble();
 
-/**
- * @brief Render a string on the screen at (x, y), which may move positions
- *        This function guarantees that the old string is properly cleared
- * @param oldString The previously written string
- * @param newString The string to write
- * @param backgroundColor The colour of the background under the string
- * @param color The color to draw this string
- * @param oldX The x co-ordinate of the left edge of the previous string
- * @param oldY The y co-ordinate of the baseline of the previous string
- * @param x The x co-ordinate of the left edge of the new string
- * @param y The y co-ordinate of the baseline of the new string
- * @param textSize The multiplier to apply to the base font size
- */
-static inline void displayStringHelper(String oldString, String newString, int oldX, int oldY, int x, int y, int backgroundColor, int color, double textSize) {
-    // Set parameters
-    tft.setFont(&OpenSansRegular32);
-    tft.setTextSize(textSize);
-
-    // Print over old text in background colour
-    tft.setCursor(oldX, oldY);
-    tft.setTextColor(backgroundColor);
-    tft.print(oldString);
-
-    // Reset cursor so new text is printed directly on top of old text
-    tft.setCursor(x, y);
-
-    // Print new text
-    tft.setTextColor(color);
-    tft.print(newString);
+    lastWTemp = wTemp;
+    wTemp = coolantDisplay.toInt();
 }
 
 static inline void displayValues() {
     // RPM Display
-    int rpm = rpmDisplay.toInt();
     int rpmColor = TEXT_COLOR;
     if (rpm > RPM_REDLINE_LOW) {
         rpmColor = RPM_REDLINE_COLOR;
@@ -150,39 +109,35 @@ static inline void displayValues() {
     } else if (rpm > RPM_OPERATING_LOW) {
         rpmColor = RPM_OPERATING_COLOR;
     }
-    displayString(rpmDisplay, 120, 100, rpmColor, 3);
-    oldRpmDisplay = rpmDisplay;
+    displayString(String(lastRpm), String(rpm), 120, 100, rpmColor, 3, BG_COLOR);
 
     // Draw the shift bar
     displayShiftBar(rpm);
 
     // Only display if the value has changed
-    if (oldVoltageDisplay.toDouble() != voltageDisplay.toDouble()) {
+    if (voltage != lastVoltage) {
         // Voltage display
-        double voltage = voltageDisplay.toDouble();
         int voltageColor = TEXT_COLOR;
         int voltageBackgroundColor = BG_COLOR;
         if (voltage < BATT_LOW || voltage > BATT_HIGH) {
             voltageBackgroundColor = RED;
         }
         tft.fillRect(0, 240, 240, 90, voltageBackgroundColor);
-        displayString(voltageDisplay, 15, 300, voltageColor, 2);
-        oldVoltageDisplay = voltageDisplay;
+        displayString(String(lastVoltage), String(voltage), 15, 300, voltageColor, 2, voltageBackgroundColor);
     }
 
     // Only display if the value has changed
-    if (oldCoolantDisplay.toDouble() != coolantDisplay.toDouble()) {
+    if (wTemp != lastWTemp) {
         // Coolant display
         int coolantColor = TEXT_COLOR;
         int coolantBackgroundColor = BG_COLOR;
-        if (coolantDisplay.toDouble() > 100) {
-            coolantBackgroundColor = RED;
-        } else if (coolantDisplay.toDouble() < 85) {
-            coolantBackgroundColor = BLUE;
+        if (wTemp > 100) {
+            coolantBackgroundColor = WTEMP_HIGH_COLOR;
+        } else if (wTemp < 85) {
+            coolantBackgroundColor = WTEMP_LOW_COLOR;
         }
         tft.fillRect(240, 240, 240, 90, coolantBackgroundColor);
-        displayString(coolantDisplay, 280, 300, coolantColor, 2);
-        oldCoolantDisplay = coolantDisplay;
+        displayString(String(lastWTemp), String(wTemp), 280, 300, coolantColor, 2, coolantBackgroundColor);
     }
 }
 
@@ -221,4 +176,72 @@ static inline void displayShiftBar(int rpm) {
 
     // Fill the rest of the bar with BG_COLOR to clear old one
     tft.fillRect((20 + width), 130, (maxWidth - width), 40, BG_COLOR);
+}
+
+// Unfortunately it's a bit complicated to move the following functions
+
+/**
+ * @brief Render a string on the screen with left edge and baseline at (x, y)
+ *        If the text moves around the screen, use renderMovingText() instead
+ *        Requires the oldSting to be passed so that we can overwrite it with
+ *        a BG_COLOR string. This is faster than drawing an entire square to
+ *        cover up the old text.
+ * @param oldString The last string that was drawn at this location
+ * @param string The string to draw
+ * @param x The x co-ordinate of the left edge of the string
+ * @param y The y co-ordinate of the baseline of the string
+ * @param color The color to draw this string
+ * @param size The multiplier to apply to the base font size
+ * @param backgroundColor Optional - use if text is rendered on a background
+ *        other than BG_COLOR
+ // TODO: Make backgroundColor optional once this isin its own class
+ */
+static void displayString(String oldString, String string, int x, int y, int color, int size, int backgroundColor) {
+    displayStringHelper(oldString, string, x, y, x, y, backgroundColor, color, size);
+}
+
+/**
+ * @brief Render an unchanging string on the screen with left edge and
+ *        baseline at (x, y)
+ *        Only use this function for strings which will never change, as it
+ *        does not clear that region of the screen before drawing it.
+ * @param oldString The last string that was drawn at this location
+ * @param string The string to draw
+ * @param x The x co-ordinate of the left edge of the string
+ * @param y The y co-ordinate of the baseline of the string
+ * @param color The color to draw this string
+ * @param size The multiplier to apply to the base font size
+ */
+static void displayStaticString(String string, int x, int y, int color, int size) {
+    displayStringHelper(string, string, x, y, x, y, BG_COLOR, color, size);
+}
+
+/**
+ * @brief Render a string on the screen at (x, y), which may move positions
+ *        This function guarantees that the old string is properly cleared
+ * @param oldString The previously written string
+ * @param newString The string to write
+ * @param backgroundColor The colour of the background under the string
+ * @param color The color to draw this string
+ * @param oldX The x co-ordinate of the left edge of the previous string
+ * @param oldY The y co-ordinate of the baseline of the previous string
+ * @param x The x co-ordinate of the left edge of the new string
+ * @param y The y co-ordinate of the baseline of the new string
+ * @param textSize The multiplier to apply to the base font size
+ */
+static inline void displayStringHelper(String oldString, String newString, int oldX, int oldY, int x, int y, int backgroundColor, int color, double textSize) {
+    // Set parameters
+    tft.setFont(&OpenSansRegular32);
+    tft.setTextSize(textSize);
+
+    // Print over old text in background colour
+    tft.setCursor(oldX, oldY);
+    tft.setTextColor(backgroundColor);
+    tft.print(oldString);
+
+    // Reset cursor so new text is printed directly on top of old text
+    // Print new text
+    tft.setCursor(x, y);
+    tft.setTextColor(color);
+    tft.print(newString);
 }

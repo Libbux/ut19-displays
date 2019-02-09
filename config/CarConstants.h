@@ -16,19 +16,19 @@
 #define WTEMP_HIGH_COLOR    RED
 
 // Engine RPM
-// Idle - white
+// Idle
 #define RPM_IDLE_COLOR      WHITE
 #define RPM_IDLE_LOW        2500
 #define RPM_IDLE_HIGH       7000
-// Operating range - green
+// Operating range
 #define RPM_OPERATING_COLOR GREEN
 #define RPM_OPERATING_LOW   7000
 #define RPM_OPERATING_HIGH  8000
-// Shift range - purple
+// Shift range
 #define RPM_SHIFT_COLOR     PURPLE
 #define RPM_SHIFT_LOW       8000
 #define RPM_SHIFT_HIGH      10000
-// Redline - red
+// Redline
 #define RPM_REDLINE_COLOR   RED
 #define RPM_REDLINE_LOW     10000
 #define RPM_REDLINE_HIGH    11000
