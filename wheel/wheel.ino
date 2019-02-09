@@ -14,6 +14,7 @@ MCUFRIEND_kbv tft;
 int rpm, lastRpm = 0;
 float voltage, lastVoltage = 0.0;
 int wTemp, lastWTemp = 0;
+bool shiftBarCleared = true;
 
 // Test string: 14.5R9500C95T
 
@@ -33,7 +34,7 @@ void setup() {
     tft.fillScreen(BG_COLOR);
 
     // Draw splash screen
-    tft.drawBitmap(80, 85, UT19SplashScreenBitmap, 310, 119, WHITE);
+    tft.drawBitmap(140, 106, UT19SplashScreenBitmap, 200, 77, WHITE);
     // Hold splash screen for 1 second
     delay(1000);
     // Draw over splash screen to make room for display
@@ -149,13 +150,12 @@ static inline void displayValues() {
 static inline void displayShiftBar(int rpm) {
     // Micro-optimization?
     // Bar is only drawn for RPMs between RPM_BAR_LOW and RPM_BAR_HIGH
-    if (rpm < RPM_BAR_LOW || rpm > RPM_BAR_HIGH) {
-        return;
-    }
 
-    // 440px wide, and
+    // Max 440px wide
     int maxWidth = 440;
-    int width = maxWidth * ((double) (rpm - RPM_BAR_LOW) / RPM_BAR_HIGH);
+
+    // Calculate width of current bar
+    int width = maxWidth * ((double) (rpm - RPM_BAR_LOW) / (RPM_BAR_HIGH - RPM_BAR_LOW));
     Serial.println("Bar width: " + width);
 
     int color = RPM_IDLE_COLOR;
@@ -167,6 +167,13 @@ static inline void displayShiftBar(int rpm) {
         color = RPM_OPERATING_COLOR;
     }
 
+    // Ensure bar is cleared at least once
+    if (rpm < RPM_BAR_LOW || rpm > RPM_BAR_HIGH) {
+        if (!shiftBarCleared) tft.fillRect(20, 130, maxWidth, 40, BG_COLOR);
+        shiftBarCleared = true;
+        return;
+    }
+
     // Only make the draw call if the bar is wider than 0px
     if (width > 0) {
         // Bar is drawn starting at at x: 20, y: 130
@@ -174,8 +181,9 @@ static inline void displayShiftBar(int rpm) {
         tft.fillRect(20, 130, width, 40, color);
     }
 
-    // Fill the rest of the bar with BG_COLOR to clear old one
+    // Fill the rest of the bar with BG_COLOR to clear remnants of old one
     tft.fillRect((20 + width), 130, (maxWidth - width), 40, BG_COLOR);
+    shiftBarCleared = false;
 }
 
 // Unfortunately it's a bit complicated to move the following functions
