@@ -35,8 +35,8 @@ void setup() {
 
     // Draw splash screen
     tft.drawBitmap(140, 106, UT19SplashScreenBitmap, 200, 77, WHITE);
-    // Hold splash screen for 1 second
-    delay(1000);
+    // Hold splash screen for 0.5s
+    delay(500);
     // Draw over splash screen to make room for display
     tft.fillRect(80, 85, 310, 119, BG_COLOR);
 
@@ -46,6 +46,7 @@ void setup() {
     displayStaticString("V",    190, 220, WHITE, 1);
     displayStaticString("TEMP", 280, 220, WHITE, 1);
     displayStaticString("C",    430, 220, WHITE, 1);
+    displayStaticString("STOP", 120, 100, WHITE, 3); // Engine stopped
 }
 
 // Main loop
@@ -94,7 +95,7 @@ inline void recieveSerialInputs() {
     rpm = rpmDisplay.toInt();
 
     lastVoltage = voltage;
-    voltage = voltageDisplay.toDouble();
+    voltage = voltageDisplay.toFloat();
 
     lastWTemp = wTemp;
     wTemp = coolantDisplay.toInt();
@@ -110,7 +111,17 @@ static inline void displayValues() {
     } else if (rpm > RPM_OPERATING_LOW) {
         rpmColor = RPM_OPERATING_COLOR;
     }
-    displayString(String(lastRpm), String(rpm), 120, 100, rpmColor, 3, BG_COLOR);
+
+    if (lastRpm == 0 && rpm != 0) {
+        // Engine was just started, so need to clear STOP message
+        displayString("STOP", String(rpm), 120, 100, rpmColor, 3, BG_COLOR);
+    } else if (rpm == 0 && lastRpm != 0) {
+        // Engine was just stopped, so need to display STOP message
+        displayString(String(lastRpm), "STOP", 120, 100, rpmColor, 3, BG_COLOR);
+    } else if (rpm != 0) {
+        // Engine is running
+        displayString(String(lastRpm), String(rpm), 120, 100, rpmColor, 3, BG_COLOR);
+    }
 
     // Draw the shift bar
     displayShiftBar(rpm);
