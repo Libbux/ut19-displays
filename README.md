@@ -1,5 +1,5 @@
 # ut19-displays
-Digital display programming for [UTFR](www.fsaeutoronto.ca)'s UT19 dashboard and steering wheel displays.
+Digital display programming for [UTFR](https://www.fsaeutoronto.ca)'s UT19 dashboard and steering wheel displays.
 
 ## Project structure
 This repository contains two Arduino sketch folders, `wheel` and `dash`, for the steering wheel-mounted display and the dashboard-mounted display. These two sketches are independent of each other, and are compiled and deployed to separate Arduinos independently. They share some code and header files, however. See [config](#config) and [assets](#assets) below.
